@@ -28,6 +28,7 @@ class Params(NamedTuple):
     action_size: int
     state_size: int
     bin_size: int
+    bin_edges: tuple
     bin_count: tuple
 
 class LunarLanderAgent:
@@ -75,6 +76,7 @@ class LunarLanderAgent:
                     desc=f"Run {run+1}/{self.params.n_runs} - Episodes",
                     leave=False,
                     miniters=(self.params.total_episodes/10),
+                    mininterval=10,
                     maxinterval=30,
                     file=sys.stdout
             ):
@@ -135,6 +137,18 @@ class LunarLanderAgent:
         # 6: Left leg contact (0, 1) Boolean
         # 7: Right leg contact (0, 1) Boolean
 
+        # Discretize the six continuous features
+        categories = [
+            int(np.digitize(value, edges))
+            for value, edges in zip(observation[:6], self.params.bin_edges)
+        ]
+
+        # Append the two binary features
+        categories.extend([
+            int(observation[6] >= 0.5),
+            int(observation[7] >= 0.5)
+        ])
+
         # Uniform discretization, simplest, but also VERY approximate and inefficient. Should change!!!
         bin_size = 4 # Determines how many "categories" to apply to EACH feature
         continous_observation = observation[:6].reshape(1, -1) # Remove the last two bool values
@@ -144,7 +158,7 @@ class LunarLanderAgent:
         binned_observation = np.concatenate([binned_observation.flatten(), observation[6:]])
         binned_observation = binned_observation.astype(int)
         state = np.ravel_multi_index(
-            tuple(binned_observation),
+            tuple(categories),
             self.params.bin_count,
         )
         return int(state)

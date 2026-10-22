@@ -25,8 +25,8 @@ if __name__ == '__main__':
     ) + (2, 2)
 
     params = Params(
-        total_episodes=1000,
-        episode_milestone_interval=250,
+        total_episodes=10000,
+        episode_milestone_interval=2500,
         learning_rate=0.25,
         discount_factor=0.99,
         initial_epsilon=1.0,
@@ -37,7 +37,8 @@ if __name__ == '__main__':
         action_size=0,
         state_size=0,
         bin_size=3,
-        bin_count=(3, 3, 3, 3, 3, 3, 2, 2)
+        bin_edges=bin_edges,
+        bin_count=bin_count,
     )
     logging.basicConfig(level=logging.INFO, format='%(message)s')
 
