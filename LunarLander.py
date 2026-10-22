@@ -8,9 +8,11 @@ import pandas as pd
 import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
+import sys
 from gymnasium.wrappers import RecordVideo, RecordEpisodeStatistics
 from sklearn.preprocessing import KBinsDiscretizer
-from tqdm import tqdm
+from tqdm.auto import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
 from qlearning import QLearning, EpsilonGreedy
 
 class Params(NamedTuple):
@@ -47,22 +49,14 @@ class LunarLanderAgent:
         )
         self.discretizer.fit(np.array([env.observation_space.low[:6], env.observation_space.high[:6]]))
 
-    def interval_milestone_handler(self, episode, info):
+    def interval_milestone_handler(self, episode, run, info):
         if "episode" in info:
-            """
-            if episode % 100 == 0:
-                episode_info = info["episode"]
-                logging.info(f"Episode {episode}: "
-                             f"reward={episode_info['r']:.1f}, "
-                             f"length={episode_info['l']}, "
-                             f"time={episode_info['t']:.2f}s")
-            """
             if episode % self.params.episode_milestone_interval == 0:
-                recent_rewards = list(self.env.return_queue)[-self.params.episode_milestone_interval:]
-                if recent_rewards:
-                    avg_reward = sum(recent_rewards) / len(recent_rewards)
-                    logging.info(
-                        f"-> Average reward over the last {self.params.episode_milestone_interval} episodes: {avg_reward:.2f}%")
+                rewards = list(self.env.return_queue)
+                #first_rewards = np.mean(rewards[:self.params.episode_milestone_interval])
+                recent_rewards = np.mean(rewards[-self.params.episode_milestone_interval:])
+                tqdm.write(f"run {run+1} -> Average reward for last {self.params.episode_milestone_interval} episodes: {recent_rewards}")
+
 
     def run_env(self):
         rewards = np.zeros((self.params.total_episodes, self.params.n_runs))
@@ -77,7 +71,12 @@ class LunarLanderAgent:
             self.learner.reset_qtable()
 
             for episode in tqdm(
-                    episodes, desc=f"Run {run+1}/{self.params.n_runs} - Episodes", leave=False, mininterval=30, maxinterval=60
+                    episodes,
+                    desc=f"Run {run+1}/{self.params.n_runs} - Episodes",
+                    leave=False,
+                    miniters=(self.params.total_episodes/10),
+                    maxinterval=30,
+                    file=sys.stdout
             ):
                 observation, info = self.env.reset()
                 state = self.discretize_observation(observation)
@@ -95,23 +94,30 @@ class LunarLanderAgent:
 
                     new_observation, reward, terminated, truncated, info = self.env.step(action)
                     new_state = self.discretize_observation(new_observation)
-                    state = new_state
+
 
                     episode_over = terminated or truncated
 
                     self.learner.qtable[state, action] = self.learner.update(
-                        state, action, reward, new_state,
+                        state, action, reward, new_state, terminated=terminated
                     )
 
                     total_reward += reward
                     step_count += 1
+                    state = new_state
 
                 rewards[episode, run] = total_reward
                 steps[episode, run] = step_count
 
-                self.interval_milestone_handler(episode, info)
+                self.interval_milestone_handler(episode, run, info)
+                self.explorer.decay_epsilon()
 
             qtables[run, :, :] = self.learner.qtable
+
+        unique_states = len(set(all_states))
+        print(f"Possible states: {self.params.state_size:,}")
+        print(f"Visited states: {unique_states:,}")
+        print(f"State coverage: {unique_states / self.params.state_size:.2%}")
 
         return rewards, steps, episodes, qtables, all_states, all_actions
 
@@ -132,7 +138,9 @@ class LunarLanderAgent:
         # Uniform discretization, simplest, but also VERY approximate and inefficient. Should change!!!
         bin_size = 4 # Determines how many "categories" to apply to EACH feature
         continous_observation = observation[:6].reshape(1, -1) # Remove the last two bool values
+
         binned_observation = self.discretizer.transform(continous_observation)
+
         binned_observation = np.concatenate([binned_observation.flatten(), observation[6:]])
         binned_observation = binned_observation.astype(int)
         state = np.ravel_multi_index(

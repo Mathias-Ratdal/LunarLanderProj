@@ -10,20 +10,34 @@ from LunarLander import Params, LunarLanderAgent
 from qlearning import QLearning, EpsilonGreedy
 
 if __name__ == '__main__':
+
+    bin_edges = (
+        [-1.0, -0.5, -0.2, 0.0, 0.2, 0.5, 1.0],  # X position
+        [0.1, 0.3, 0.6, 1.0],  # Y position
+        [-0.7, -0.15, 0.15, 0.7],  # X velocity
+        [-0.9, -0.35, -0.1, 0.2],  # Y velocity
+        [-0.4, -0.1, 0.1, 0.4],  # Angle
+        [-0.15, 0.15], # Angular Velocity
+    )
+
+    bin_count = tuple(
+        len(edges) + 1 for edges in bin_edges
+    ) + (2, 2)
+
     params = Params(
         total_episodes=1000,
         episode_milestone_interval=250,
         learning_rate=0.25,
-        discount_factor=0.65,
-        initial_epsilon=0.25,
-        epsilon_decay_rate=0.95,
-        final_epsilon=0.1,
+        discount_factor=0.99,
+        initial_epsilon=1.0,
+        epsilon_decay_rate=0.9997,
+        final_epsilon=0.05,
         seed=42,
         n_runs=1,
         action_size=0,
         state_size=0,
-        bin_size=10,
-        bin_count=(10, 10, 10, 10, 10, 10, 2, 2)
+        bin_size=3,
+        bin_count=(3, 3, 3, 3, 3, 3, 2, 2)
     )
     logging.basicConfig(level=logging.INFO, format='%(message)s')
 
