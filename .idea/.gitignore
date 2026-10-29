@@ -8,5 +8,5 @@
 # Datasource local storage ignored files
 /dataSources/
 /dataSources.local.xml
-*/CaLander/best_ca_genome.json
-*/CaLander/ca_ga_history.json
+**/CaLander/best_ca_genome.json
+**/CaLander/ca_ga_history.json
